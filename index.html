@@ -229,17 +229,19 @@ span.pola-photo{display:grid;place-items:center;color:var(--ink2)}
 #map{position:absolute;inset:0;overflow:hidden;touch-action:none;background:#F1E9D8;user-select:none;-webkit-user-select:none}
 #mapinner{position:absolute;inset:0;transform-origin:0 0}
 #tiles,#markers{position:absolute;left:0;top:0}
-.mt{position:absolute;left:0;top:0;width:256px;height:256px;filter:sepia(.18) saturate(1.1);pointer-events:none;-webkit-user-drag:none}
-.mt.miss{visibility:hidden}
+.tl{position:absolute;left:0;top:0;width:256px;height:256px;overflow:hidden;pointer-events:none}
+.tl img{position:absolute;left:0;top:0;max-width:none;filter:sepia(.18) saturate(1.1);-webkit-user-drag:none;user-select:none}
+.tl.miss{background-image:linear-gradient(rgba(58,46,40,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(58,46,40,.07) 1px,transparent 1px);background-size:32px 32px}
 #mapline{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .mapinfo{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));background:var(--cream);border:2px solid var(--ink);border-radius:var(--r);box-shadow:3px 4px 0 var(--ink);padding:10px 12px;max-width:540px;margin:0 auto}
 .mapinfo select{font:inherit;font-size:16px;flex:1;min-width:0;border:2px solid var(--ink);border-radius:10px;padding:5px 8px;background:var(--paper);color:var(--ink)}
 .dist{margin-top:8px;display:flex;align-items:center;gap:6px;font-size:15px;flex-wrap:wrap}
 .arrow{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--butter);border:2px solid var(--ink)}
 .mapbtns{position:absolute;right:12px;bottom:28px;display:flex;flex-direction:column;gap:10px}
-#page-map.picking .mapbtns{display:none}
+#page-map.picking .mapbtns,#page-map.picking .maphint{display:none}
 .rb{width:46px;height:46px;border-radius:50%;border:2px solid var(--ink);background:var(--cream);box-shadow:2px 3px 0 var(--ink);display:grid;place-items:center;color:var(--ink);padding:0}
 .rb:active{transform:translate(2px,3px);box-shadow:none}
+.maphint{position:absolute;left:12px;right:72px;bottom:28px;max-width:360px;background:var(--cream);border:2px solid var(--ink);border-radius:14px;box-shadow:3px 4px 0 var(--ink);padding:10px 12px;font-size:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .attrib{position:absolute;left:6px;bottom:4px;font-size:10px;color:var(--ink2);background:rgba(255,253,248,.75);padding:0 4px;border-radius:4px}
 #cross{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:none}
 #cross::before,#cross::after{content:"";position:absolute;background:var(--red);border-radius:2px}
@@ -339,6 +341,7 @@ textarea.code{height:180px;font-size:12px;font-family:ui-monospace,monospace}
     <div id="cross" hidden></div>
     <div id="mapInfo" class="mapinfo"></div>
     <div class="mapbtns"></div>
+    <div id="mapHint" class="maphint" hidden></div>
     <div class="attrib">© OpenStreetMap contributors © CARTO</div>
     <div id="pickbar" class="pickbar" hidden></div>
   </section>
@@ -917,6 +920,78 @@ function bearing(a,b){const t=Math.PI/180,y=Math.sin((b.lng-a.lng)*t)*Math.cos(b
 const DIRS=['北','東北','東','東南','南','西南','西','西北'];
 const fmtDist=m=>m<1000?`${Math.round(m)} 公尺`:`${(m/1000).toFixed(1)} 公里`;
 
+/* 地圖圖塊：先讀手機裡存好的 → 沒有就上網抓並存起來 → 都沒有就用上一層放大頂著 */
+let tileStoreP=null;
+function tcache(){if(!('caches' in window))return Promise.resolve(null);if(!tileStoreP)tileStoreP=caches.open(TILE_CACHE).catch(()=>null);return tileStoreP}
+const srcMem=new Map();
+function memGet(u){if(!srcMem.has(u))return null;const v=srcMem.get(u);srcMem.delete(u);srcMem.set(u,v);return v}
+function memSet(u,s){srcMem.set(u,s);while(srcMem.size>500){const k=srcMem.keys().next().value,v=srcMem.get(k);srcMem.delete(k);if(v&&v.startsWith('blob:'))setTimeout(()=>URL.revokeObjectURL(v),8000)}}
+async function tileLocal(u){
+  const m=memGet(u);if(m)return m;
+  const c=await tcache();if(!c)return null;
+  try{const r=await c.match(u);if(!r)return null;
+    if(r.type==='opaque'){memSet(u,u);return u}
+    const b=await r.blob();if(!b.size)return null;
+    const s=URL.createObjectURL(b);memSet(u,s);return s;
+  }catch(e){return null}
+}
+async function tileNet(u){
+  if(!navigator.onLine)return null;
+  try{const r=await fetch(u,{mode:'cors',credentials:'omit'});if(!r.ok)return null;
+    const b=await r.clone().blob();
+    tcache().then(c=>c&&c.put(u,r)).catch(()=>{});
+    const s=URL.createObjectURL(b);memSet(u,s);return s;
+  }catch(e){return u}
+}
+function setTileImg(t,src,k,ox,oy){
+  const isParent=k>0;
+  let im=t.el.firstChild;if(!im){im=document.createElement('img');im.alt='';im.draggable=false;t.el.appendChild(im)}
+  const sz=TILE*(1<<k);
+  im.style.width=im.style.height=sz+'px';
+  im.style.transform=`translate(${-ox*TILE}px,${-oy*TILE}px)`;
+  im.onerror=()=>{if(t.dead)return;if(!isParent){t.state=null;showParentTile(t).then(ok=>{if(!ok&&!t.dead){t.state='miss';t.el.classList.add('miss')}mapCheckHint()})}else{t.state='miss';t.el.classList.add('miss');mapCheckHint()}};
+  im.src=src;
+  t.state=isParent?'parent':'full';t.el.classList.remove('miss');
+}
+async function showParentTile(t){
+  for(let k=1;k<=6&&t.z-k>=1;k++){
+    const pz=t.z-k,px=t.x>>k,py=t.y>>k;
+    const s=await tileLocal(TURL(pz,px,py));
+    if(t.dead||t.state==='full')return true;
+    if(s){setTileImg(t,s,k,t.x-(px<<k),t.y-(py<<k));return true}
+  }
+  return false;
+}
+async function loadTile(t){
+  const u=TURL(t.z,t.x,t.y);
+  const local=await tileLocal(u);
+  if(t.dead)return;
+  if(local){setTileImg(t,local,0,0,0);return mapCheckHint()}
+  const netP=tileNet(u);
+  const hasParent=await showParentTile(t);
+  const net=await netP;
+  if(t.dead)return;
+  if(net)setTileImg(t,net,0,0,0);
+  else if(!hasParent){t.state='miss';t.el.classList.add('miss')}
+  mapCheckHint();
+}
+function makeTile(z,x,y){const el=document.createElement('div');el.className='tl';const t={el,z,x,y,dead:false,state:null};loadTile(t);return t}
+let hintT=null;
+function mapCheckHint(){
+  clearTimeout(hintT);
+  hintT=setTimeout(()=>{
+    const h=$('#mapHint');if(!h)return;
+    if(curTab!=='map'||map.picking){h.hidden=true;return}
+    const ts=[...map.tiles.values()];
+    if(!ts.length||ts.some(t=>!t.state)){return}
+    const any=ts.some(t=>t.state==='full'||t.state==='parent');
+    if(any){h.hidden=true;return}
+    const hasSpots=spotsArr().some(hasPos);
+    h.innerHTML=`<span>${navigator.onLine?'地圖載不出來，網路可能不穩':'這附近還沒有存離線地圖'}</span>${hasSpots?`<button class="btn small" data-act="mapspots">${ic('pin',15)}回到景點</button>`:''}`;
+    h.hidden=false;
+  },900);
+}
+
 function mapLoadView(){
   map.viewFor=trip.id;const v=LS.get('tp.mv.'+trip.id,null);
   if(v&&typeof v.lat==='number'){map.lat=v.lat;map.lng=v.lng;map.z=v.z;map.follow=false}
@@ -962,17 +1037,17 @@ function mapRender(){
   map.lat=Math.max(-85,Math.min(85,map.lat));
   const z=map.z,n=2**z,ox=lng2px(map.lng,z)-W/2,oy=lat2px(map.lat,z)-H/2,need=new Set(),layer=$('#tiles');
   const x0=Math.floor(ox/TILE),x1=Math.floor((ox+W)/TILE),y0=Math.max(0,Math.floor(oy/TILE)),y1=Math.min(n-1,Math.floor((oy+H)/TILE));
-  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){const k=z+'/'+x+'/'+y;need.add(k);let im=map.tiles.get(k);
-    if(!im){im=document.createElement('img');im.className='mt';im.alt='';im.draggable=false;im.onerror=()=>im.classList.add('miss');im.src=TURL(z,((x%n)+n)%n,y);layer.appendChild(im);map.tiles.set(k,im)}
-    im.style.transform=`translate(${Math.round(x*TILE-ox)}px,${Math.round(y*TILE-oy)}px)`}
-  for(const[k,im]of map.tiles)if(!need.has(k)){im.remove();map.tiles.delete(k)}
+  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){const k=z+'/'+x+'/'+y;need.add(k);let t=map.tiles.get(k);
+    if(!t){t=makeTile(z,((x%n)+n)%n,y);layer.appendChild(t.el);map.tiles.set(k,t)}
+    t.el.style.transform=`translate(${Math.round(x*TILE-ox)}px,${Math.round(y*TILE-oy)}px)`}
+  for(const[k,t]of map.tiles)if(!need.has(k)){t.dead=true;t.el.remove();map.tiles.delete(k)}
   const P=p=>[lng2px(p.lng,z)-ox,lat2px(p.lat,z)-oy];
   for(const{s,b}of map.mk){const[x,y]=P(s);b.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;b.classList.toggle('sel',s.id===map.sel)}
   $('#markers').classList.toggle('showlbl',z>=15);
   if(map.meEl){if(map.me){const[x,y]=P(map.me);map.meEl.hidden=false;map.meEl.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`}else map.meEl.hidden=true}
   const s=map.sel&&trip.spots[map.sel],svg=$('#mapline');
   if(hasPos(s)&&map.me){const[a,b]=P(map.me),[c,d]=P(s);svg.innerHTML=`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="#E2553F" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="1 10"/>`}else svg.innerHTML='';
-  saveView();
+  saveView();mapCheckHint();
 }
 function distHTML(s){
   if(!map.me)return `<div class="dist muted">按右下 ${ic('locate',16)} 看你離這裡多遠</div>`;
@@ -1034,22 +1109,39 @@ function dlSpots(){
   for(const p of pts){tilesFor({n:p.lat+.012,s:p.lat-.012,w:p.lng-.015,e:p.lng+.015},[14,15],set);tilesFor({n:p.lat+.006,s:p.lat-.006,w:p.lng-.008,e:p.lng+.008},[16],set)}
   downloadTiles([...set]);
 }
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
 async function downloadTiles(urls){
-  if(!navigator.serviceWorker||!navigator.serviceWorker.controller)return alert('離線地圖要用網址打開（例如 GitHub Pages），而且重新整理一次之後才存得起來喔。');
+  const c=await tcache();if(!c)return alert('這個瀏覽器沒辦法存離線地圖，換 Safari 或 Chrome 試試。');
   if(!navigator.onLine)return toast('現在沒有網路');
-  try{const c=await caches.open(TILE_CACHE);const have=new Set((await c.keys()).map(r=>r.url));urls=urls.filter(u=>!have.has(u))}catch(e){}
+  try{const have=new Set((await c.keys()).map(r=>r.url));urls=urls.filter(u=>!have.has(u))}catch(e){}
   if(!urls.length)return toast('這個範圍已經存好了');
   if(urls.length>2500)return toast('範圍太大了，放大一點再下載');
-  if(!confirm(`要存 ${urls.length} 張地圖（大約 ${Math.max(1,Math.round(urls.length*20/1024))} MB）？\n建議連 Wi-Fi 的時候做。`))return;
+  let msg=`要存 ${urls.length} 張地圖（大約 ${Math.max(1,Math.round(urls.length*20/1024))} MB）？\n建議連 Wi-Fi 的時候做。`;
+  if(isIOS()&&!navigator.standalone)msg+='\n\n提醒：你現在是用 Safari 開的。iPhone 的 Safari 和「主畫面 App」資料是分開的，要在主畫面的 App 裡存，出國時才看得到。';
+  if(!confirm(msg))return;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
-  const pg=$('#prog');pg.hidden=false;let i=0,done=0;
-  const paint=()=>{pg.innerHTML=`存地圖中… ${done} / ${urls.length}<div class="bar"><i style="width:${done/urls.length*100}%"></i></div>`};paint();
-  const worker=async()=>{while(i<urls.length){const u=urls[i++];try{await fetch(u)}catch(e){}done++;if(done%5===0||done===urls.length)paint()}};
+  const pg=$('#prog');pg.hidden=false;
+  let i=0,ok=0,fail=0,full=false;
+  const paint=()=>{const d=ok+fail;pg.innerHTML=`存地圖中… ${d} / ${urls.length}<div class="bar"><i style="width:${d/urls.length*100}%"></i></div>`};paint();
+  const worker=async()=>{while(i<urls.length&&!full){const u=urls[i++];
+    try{const r=await fetch(u,{mode:'cors',credentials:'omit'});if(!r.ok)throw new Error('bad');await c.put(u,r);ok++}
+    catch(e){if(e&&e.name==='QuotaExceededError')full=true;fail++}
+    const d=ok+fail;if(d%5===0||d===urls.length)paint()}};
   await Promise.all(Array.from({length:6},worker));
-  pg.hidden=true;toast('地圖存好了，沒網路也看得到');if(curTab==='set')renderSettings();
+  pg.hidden=true;
+  if(full)alert(`手機空間不夠，只存了 ${ok} 張。可以清掉一些照片或 App 再試。`);
+  else if(!ok)alert('地圖都沒存成功。可能是網路不穩，或地圖伺服器暫時擋下，請過幾分鐘再試一次。');
+  else toast(fail?`存好 ${ok} 張，${fail} 張失敗，再按一次可以補存`:`存好 ${ok} 張，沒網路也看得到了`);
+  if(curTab==='set')renderSettings();
+  if(curTab==='map'){for(const t of map.tiles.values()){t.dead=true;t.el.remove()}map.tiles.clear();mapRender()}
 }
-async function tileCount(){try{if(!('caches' in window))return 0;const c=await caches.open(TILE_CACHE);return (await c.keys()).length}catch(e){return 0}}
-async function clearTiles(){if(!confirm('要清除所有存好的離線地圖嗎？'))return;try{await caches.delete(TILE_CACHE)}catch(e){}renderSettings();toast('清掉了')}
+async function tileCount(){try{const c=await tcache();if(!c)return 0;return (await c.keys()).length}catch(e){return 0}}
+async function clearTiles(){
+  if(!confirm('要清除所有存好的離線地圖嗎？'))return;
+  try{await caches.delete(TILE_CACHE)}catch(e){}
+  tileStoreP=null;for(const v of srcMem.values())if(v&&v.startsWith('blob:'))URL.revokeObjectURL(v);srcMem.clear();
+  renderSettings();toast('清掉了');
+}
 
 /* ========== QR 收藏（每趟各自分開，只存在自己手機） ========== */
 let qrList=[],qrURLs=[];
@@ -1166,6 +1258,7 @@ document.addEventListener('click',e=>{
     case 'dlview':dlView();break;
     case 'dlspots':dlSpots();break;
     case 'cleartiles':clearTiles();break;
+    case 'mapspots':{const pts=spotsArr().filter(hasPos);if(pts.length){$('#mapHint').hidden=true;fitTo(pts)}break}
     case 'mk':if(!map.moved){map.sel=id;mapRender();mapInfo()}break;
     case 'pick':{const inp=t.closest('.coordrow').querySelector('input');startPick((la,ln)=>{inp.value=`${la.toFixed(6)}, ${ln.toFixed(6)}`},parseCoords(inp.value));break}
     case 'pickok':endPick(true);break;
