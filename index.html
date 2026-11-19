@@ -45,8 +45,10 @@ h2{font-size:19px;display:inline-block;background:linear-gradient(transparent 62
 .wx-now{display:flex;align-items:center;gap:12px}
 .wx-ic{width:58px;height:58px;border:2px solid var(--ink);border-radius:50%;display:grid;place-items:center;background:#FFF3C9;flex:none}
 .wx-now .big{font-size:34px;margin-right:6px}.wx-now small{display:block;color:var(--ink2)}
-.wx-days{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;text-align:center}
-.wx-days>div{background:var(--paper);border-radius:12px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:14px}
+.wx-days{display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none;text-align:center}
+.wx-days::-webkit-scrollbar{display:none}
+.wx-days>div{flex:0 0 66px;background:var(--paper);border-radius:12px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:14px}
+.wx-days>div.today{background:#FFF3C9;box-shadow:inset 0 0 0 2px var(--butter)}
 .wx-days small{font-size:11.5px;color:var(--ink2)}
 .sos a{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 2px;border-bottom:1.5px dashed var(--paper2);color:inherit;text-decoration:none}.sos a:last-child{border:0}
 .sos a b{color:var(--red);font-size:17px;white-space:nowrap}
@@ -241,7 +243,7 @@ span.pola-photo{display:grid;place-items:center;color:var(--ink2)}
 #page-map.picking .mapbtns,#page-map.picking .maphint{display:none}
 .rb{width:46px;height:46px;border-radius:50%;border:2px solid var(--ink);background:var(--cream);box-shadow:2px 3px 0 var(--ink);display:grid;place-items:center;color:var(--ink);padding:0}
 .rb:active{transform:translate(2px,3px);box-shadow:none}
-.maphint{position:absolute;left:12px;right:72px;bottom:28px;max-width:360px;background:var(--cream);border:2px solid var(--ink);border-radius:14px;box-shadow:3px 4px 0 var(--ink);padding:10px 12px;font-size:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.maphint{position:absolute;left:12px;right:72px;bottom:28px;max-width:360px;background:var(--cream);border:2px solid var(--ink);border-radius:14px;box-shadow:3px 4px 0 var(--ink);padding:10px 12px;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .attrib{position:absolute;left:6px;bottom:4px;font-size:10px;color:var(--ink2);background:rgba(255,253,248,.75);padding:0 4px;border-radius:4px}
 #cross{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:none}
 #cross::before,#cross::after{content:"";position:absolute;background:var(--red);border-radius:2px}
@@ -272,6 +274,18 @@ span.pola-photo{display:grid;place-items:center;color:var(--ink2)}
 .lrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .check{padding-left:22px;margin:6px 0}.check li{margin:6px 0}.check li.ok{color:#5E8A3D}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:4px 0;font-size:15px}.kv dt{color:var(--ink2)}.kv dd{margin:0}
+.seg{display:flex;border:2px solid var(--ink);border-radius:14px;overflow:hidden;margin:8px 0}
+.seg button{flex:1;font:inherit;font-size:14px;border:0;background:var(--cream);color:var(--ink);padding:8px 6px;line-height:1.25}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button.on{background:var(--butter)}
+.seg button small{display:block;font-size:11px;color:var(--ink2)}
+.citygrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0;max-height:44vh;overflow:auto;padding:2px}
+.cityb{font:inherit;font-size:14px;border:2px solid var(--ink);border-radius:12px;background:var(--cream);color:var(--ink);padding:8px 4px;line-height:1.2;cursor:pointer}
+.cityb small{display:block;font-size:11px;color:var(--ink2);min-height:13px}
+.cityb.on{background:var(--butter);box-shadow:2px 2px 0 var(--ink)}
+.cityb.done{border-style:dashed}
+.cityb.done small::before{content:"✓ "}
+.warnbox{background:#FFF6D8;border:1.5px dashed var(--red);border-radius:10px;padding:8px 10px;font-size:13px;margin:8px 0}
 
 /* ===== 導覽列、彈出視窗 ===== */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--cream);border-top:2px solid var(--ink);padding:6px 4px calc(6px + env(safe-area-inset-bottom));height:calc(var(--nav) + env(safe-area-inset-bottom))}
@@ -375,6 +389,39 @@ const FIREBASE_CONFIG = {
 const FB_VER='10.12.2';
 const QR_LIB='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
 
+/* ========== 可下載的城市（首都＋縣市，以縣市政府所在地為中心） ========== */
+const CITIES={
+  tw:{name:'台灣',list:[
+    ['臺北市','',25.0375,121.5637],['新北市','板橋',25.0124,121.4652],['桃園市','',24.9936,121.3010],['臺中市','',24.1477,120.6736],
+    ['臺南市','',22.9997,120.2270],['高雄市','',22.6273,120.3014],['基隆市','',25.1276,121.7392],['新竹市','',24.8039,120.9647],
+    ['嘉義市','',23.4801,120.4491],['新竹縣','竹北',24.8387,121.0177],['苗栗縣','苗栗',24.5602,120.8214],['彰化縣','彰化',24.0809,120.5385],
+    ['南投縣','南投',23.9105,120.6853],['雲林縣','斗六',23.7092,120.5431],['嘉義縣','太保',23.4590,120.3329],['屏東縣','屏東',22.6727,120.4880],
+    ['宜蘭縣','宜蘭',24.7570,121.7533],['花蓮縣','花蓮',23.9871,121.6015],['臺東縣','臺東',22.7583,121.1444],['澎湖縣','馬公',23.5654,119.5793],
+    ['金門縣','金城',24.4341,118.3171],['連江縣','南竿',26.1505,119.9499]]},
+  jp:{name:'日本',list:[
+    ['東京都','',35.6812,139.7671],['北海道','札幌',43.0621,141.3544],['青森縣','青森',40.8222,140.7474],['岩手縣','盛岡',39.7036,141.1527],
+    ['宮城縣','仙台',38.2682,140.8694],['秋田縣','秋田',39.7186,140.1024],['山形縣','山形',38.2404,140.3633],['福島縣','福島',37.7503,140.4676],
+    ['茨城縣','水戶',36.3418,140.4468],['栃木縣','宇都宮',36.5551,139.8828],['群馬縣','前橋',36.3895,139.0634],['埼玉縣','埼玉',35.8617,139.6455],
+    ['千葉縣','千葉',35.6073,140.1063],['神奈川縣','橫濱',35.4437,139.6380],['新潟縣','新潟',37.9161,139.0364],['富山縣','富山',36.6953,137.2113],
+    ['石川縣','金澤',36.5613,136.6562],['福井縣','福井',36.0652,136.2216],['山梨縣','甲府',35.6642,138.5684],['長野縣','長野',36.6513,138.1810],
+    ['岐阜縣','岐阜',35.4233,136.7606],['靜岡縣','靜岡',34.9756,138.3828],['愛知縣','名古屋',35.1815,136.9066],['三重縣','津',34.7303,136.5086],
+    ['滋賀縣','大津',35.0045,135.8686],['京都府','京都',35.0116,135.7681],['大阪府','大阪',34.6937,135.5023],['兵庫縣','神戶',34.6901,135.1955],
+    ['奈良縣','奈良',34.6851,135.8048],['和歌山縣','和歌山',34.2260,135.1675],['鳥取縣','鳥取',35.5011,134.2351],['島根縣','松江',35.4723,133.0505],
+    ['岡山縣','岡山',34.6551,133.9195],['廣島縣','廣島',34.3853,132.4553],['山口縣','山口',34.1785,131.4737],['德島縣','德島',34.0703,134.5548],
+    ['香川縣','高松',34.3428,134.0466],['愛媛縣','松山',33.8392,132.7657],['高知縣','高知',33.5597,133.5311],['福岡縣','福岡',33.5904,130.4017],
+    ['佐賀縣','佐賀',33.2494,130.2988],['長崎縣','長崎',32.7503,129.8779],['熊本縣','熊本',32.8032,130.7079],['大分縣','大分',33.2382,131.6126],
+    ['宮崎縣','宮崎',31.9077,131.4202],['鹿兒島縣','鹿兒島',31.5966,130.5571],['沖繩縣','那霸',26.2124,127.6809]]},
+  kr:{name:'韓國',list:[
+    ['首爾','',37.5665,126.9780],['釜山','',35.1796,129.0756],['大邱','',35.8714,128.6014],['仁川','',37.4563,126.7052],
+    ['光州','',35.1595,126.8526],['大田','',36.3504,127.3845],['蔚山','',35.5384,129.3114],['世宗','',36.4800,127.2890],
+    ['京畿道','水原',37.2636,127.0286],['江原','春川',37.8813,127.7298],['忠清北道','清州',36.6424,127.4890],['忠清南道','內浦',36.6588,126.6728],
+    ['全北','全州',35.8242,127.1480],['全羅南道','務安',34.8161,126.4629],['慶尚北道','安東',36.5760,128.5056],['慶尚南道','昌原',35.2281,128.6811],
+    ['濟州','',33.4996,126.5312]]}
+};
+const COUNTRY_BOX={tw:{n:26.5,s:21.8,w:118.1,e:122.1},jp:{n:45.6,s:24.0,w:122.9,e:146.0},kr:{n:38.7,s:33.0,w:124.5,e:131.0}};
+const SIZES={s:{label:'市中心',desc:'約 6MB',r1:.05,r2:.03},l:{label:'整個市區',desc:'約 25MB',r1:.12,r2:.04}};
+function findCity(k){const i=String(k).indexOf(':');if(i<0)return null;const cc=k.slice(0,i),name=k.slice(i+1),C=CITIES[cc];const c=C&&C.list.find(x=>x[0]===name);return c?{cc,c}:null}
+
 /* ========== 小工具 ========== */
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -389,6 +436,11 @@ const reduceMotion=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion
 const ordered=o=>Object.values(o||{}).sort((a,b)=>(a.o||0)-(b.o||0));
 const LS={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('存不進去，手機空間可能不夠')}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+const isStandalone=()=>!!(navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches));
+/* 網路模式：online＝沒下載的地方會上網抓；offline＝只用已下載的，完全不上網抓地圖和天氣 */
+const netMode=()=>LS.get('tp.mode','online');
+const useNet=()=>netMode()==='online'&&navigator.onLine;
 
 const ICONS={
 home:'<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
@@ -625,7 +677,7 @@ function tripStatus(){if(!trip.from)return{t:'nodate'};const t=new Date();t.setH
 const spotsOfDay=d=>spotsArr().filter(s=>Number(s.day)===d).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
 const gmapsDir=(s,m)=>`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=${m}`;
 const gmapsPlace=s=>`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`;
-const netBadge=()=>navigator.onLine?'<span class="net on">有網路</span>':'<span class="net off">離線中</span>';
+const netBadge=()=>netMode()==='offline'?'<span class="net off">離線模式</span>':navigator.onLine?'<span class="net on">有網路</span>':'<span class="net off">沒網路</span>';
 function ago(ts){const m=Math.round((Date.now()-ts)/6e4),d=new Date(ts),p=n=>String(n).padStart(2,'0');return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`+(m<1?'（剛剛）':m<60?`（${m} 分鐘前）`:m<1440?`（${Math.round(m/60)} 小時前）`:`（${Math.round(m/1440)} 天前）`)}
 function parseCoords(s){s=String(s||'');const m=s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||s.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/)||s.match(/(-?\d{1,3}\.\d+)\s*[,，]\s*(-?\d{1,3}\.\d+)/);return m?{lat:+m[1],lng:+m[2]}:null}
 
@@ -652,9 +704,13 @@ function renderHome(){
   const st=tripStatus(),d=st.t==='during'?st.n:1,list=spotsOfDay(d);
   const cal=st.t==='nodate'?['出發日','?','點我設定']:st.t==='before'?['出發倒數',st.n,'天']:st.t==='during'?['旅行第',st.n,'天']:['旅程結束','✓','辛苦啦'];
   const places=ordered(trip.places),w=wxData(),night=isNight(),online=navigator.onLine,introOn=LS.get('tp.intro','on')!=='off';
-  let winIn,winTag,sky=night?'#34406A':'#C9DCEB';
-  if(w){const p=w.list[0],[icn,txt]=wx(p.cur.code);if(!night)sky=SKY[icn];winIn=`${ic(icn,34)}<b>${Math.round(p.cur.t)}°</b>`;winTag=`${esc(p.name)}・${txt}`}
-  else{winIn='<b>?</b>';winTag=places.length?'拉開窗簾看天氣':'先新增天氣地點'}
+  let winIn='<b>?</b>',winTag=places.length?'拉開窗簾看天氣':'先新增天氣地點',sky=night?'#34406A':'#C9DCEB',opened=false;
+  if(w){
+    const p=w.list[0],fresh=new Date(w.at).toDateString()===new Date().toDateString(),td=(p.days||[]).find(x=>x.date===todayStr());
+    if(fresh&&p.cur){const[icn,txt]=wx(p.cur.code);if(!night)sky=SKY[icn];winIn=`${ic(icn,34)}<b>${Math.round(p.cur.t)}°</b>`;winTag=`${esc(p.name)}・${txt}`;opened=true}
+    else if(td){const[icn,txt]=wx(td.code);if(!night)sky=SKY[icn];winIn=`${ic(icn,34)}<b>${Math.round(td.max)}°</b>`;winTag=`${esc(p.name)}・今天${txt}`;opened=true}
+    else winTag='天氣資料過期了';
+  }
   const sos=ordered(trip.sos);
   $('#page-home').innerHTML=`<div class="room"><div class="wall">
 <div class="lamp${online?' lit':''}">${LAMP}<span class="lamp-tag">${online?'有網路':'離線中'}</span></div>
@@ -662,7 +718,7 @@ function renderHome(){
 ${garlandHTML()}
 <div class="wall-row">
   <button class="cal wall-item" data-act="cal" style="--i:2;--rot:-2deg"><span class="cal-top"><i></i><i></i></span><span class="cal-sub">${cal[0]}</span><b class="cal-num">${cal[1]}</b><span class="cal-unit">${cal[2]}</span><span class="cal-foot">${trip.from?fmtD(dayDate(1))+' 出發':'還沒決定日期'}</span></button>
-  <div class="win-wrap wall-item" style="--i:3;--rot:1.5deg"><button class="win${w?' opened':''}${night?' night':''}" data-act="wxopen" style="--sky:${sky}"><span class="win-glass">${winIn}</span><span class="curtain l"></span><span class="curtain r"></span></button><span class="win-tag">${winTag}</span></div>
+  <div class="win-wrap wall-item" style="--i:3;--rot:1.5deg"><button class="win${opened?' opened':''}${night?' night':''}" data-act="wxopen" style="--sky:${sky}"><span class="win-glass">${winIn}</span><span class="curtain l"></span><span class="curtain r"></span></button><span class="win-tag">${winTag}</span></div>
 </div>
 <div class="cork wall-item" style="--i:4"><div class="cork-head"><span class="label">常用連結</span><button class="label edit" data-tab="set">${ic('edit',14)}編輯</button></div><div class="notes">${ordered(trip.links).map(noteTile).join('')}</div></div>
 <div class="memo wall-item" style="--i:5;--rot:.8deg"><h2>${st.t==='during'?'今天':'Day '+d}${trip.from?'・'+fmtD(dayDate(d)):''}</h2>
@@ -790,34 +846,46 @@ function playIntro(){
   el.addEventListener('click',()=>{if(el.classList.contains('open')||done)return;T.forEach(clearTimeout);T.length=0;el.classList.add('open');T.push(setTimeout(walkIn,800));T.push(setTimeout(finish,2000))});
 }
 
-/* ========== 天氣：點窗戶看，按更新才抓 ========== */
+/* ========== 天氣：選城市、下載一週，離線也看得到 ========== */
 function wx(c){c=Number(c);if(c===0)return['sun','晴天'];if(c<=2)return['partly','晴時多雲'];if(c===3)return['cloud','陰天'];if(c<=48)return['cloud','有霧'];if(c<=57)return['rain','毛毛雨'];if(c<=67)return['rain','下雨'];if(c<=77)return['snow','下雪'];if(c<=82)return['rain','陣雨'];if(c<=86)return['snow','陣雪'];return['storm','雷雨']}
+function wxBlock(p,fresh){
+  const today=todayStr(),days=(p.days||[]).filter(d=>!d.date||d.date>=today),td=days.find(d=>d.date===today);
+  let now;
+  if(fresh&&p.cur){const[i,t]=wx(p.cur.code);now=`<div class="wx-now"><div class="wx-ic">${ic(i,34)}</div><div><b class="big">${Math.round(p.cur.t)}°</b><span>${esc(p.name)}・${t}</span><small>體感 ${Math.round(p.cur.feel)}°</small></div></div>`}
+  else if(td){const[i,t]=wx(td.code);now=`<div class="wx-now"><div class="wx-ic">${ic(i,34)}</div><div><b class="big">${Math.round(td.max)}°</b><span>${esc(p.name)}・今天${t}</span><small>最低 ${Math.round(td.min)}°・降雨 ${td.rain??'-'}%</small></div></div>`}
+  else now=`<div class="wx-now"><div><span>${esc(p.name)}</span><small>資料過期了，有網路時再下載一次</small></div></div>`;
+  return `<div class="wx">${now}<div class="wx-days">${days.map(d=>`<div class="${d.date===today?'today':''}"><small>${d.date===today?'今天':d.label}</small>${ic(wx(d.code)[0],24)}<span>${Math.round(d.max)}°<small> / ${Math.round(d.min)}°</small></span><small>降雨 ${d.rain??'-'}%</small></div>`).join('')}</div></div>`;
+}
 function showWeather(){
-  const w=wxData(),places=ordered(trip.places);
-  $('#sheet').innerHTML=`<div class="sheet-grip"></div><div class="row-between" id="wxSheet"><h3>窗外的天氣</h3>${places.length?`<button class="btn small" data-act="wx" id="wxBtn">${ic('refresh',16)}更新</button>`:''}</div>
-${!places.length?'<p class="muted">還沒有天氣地點。新增你要去的城市，之後按「更新」就能看天氣。</p>'
-:w?w.list.map(p=>{const[i,t]=wx(p.cur.code);return `<div class="wx"><div class="wx-now"><div class="wx-ic">${ic(i,34)}</div><div><b class="big">${Math.round(p.cur.t)}°</b><span>${esc(p.name)}・${t}</span><small>體感 ${Math.round(p.cur.feel)}°</small></div></div>
-<div class="wx-days">${p.days.map(d=>`<div><small>${d.label}</small>${ic(wx(d.code)[0],24)}<span>${Math.round(d.max)}°<small> / ${Math.round(d.min)}°</small></span><small>降雨 ${d.rain??'-'}%</small></div>`).join('')}</div></div>`}).join('')+`<p class="muted small">上次更新：${ago(w.at)}</p>`
-:'<p class="muted">為了省網路，按「更新」才會抓天氣。抓過的會留著，沒網路也看得到。</p>'}
-<div class="btns end"><button class="btn white" data-act="addplace">${ic('plus',16)}新增地點</button><button class="btn white" data-act="closesheet">關閉</button></div>`;
+  const w=wxData(),places=ordered(trip.places),off=netMode()==='offline';
+  const fresh=w&&new Date(w.at).toDateString()===new Date().toDateString();
+  $('#sheet').innerHTML=`<div class="sheet-grip"></div><div class="row-between" id="wxSheet"><h3>窗外的天氣</h3>${places.length&&!off?`<button class="btn small" data-act="wx" id="wxBtn">${ic('download',16)}下載一週</button>`:''}</div>
+${off?'<p class="muted small">現在是離線模式，顯示已下載的天氣。要更新請到「設定」切成連網模式。</p>':''}
+${!places.length?'<p class="muted">還沒有天氣城市。按下面「選城市」，選好會自動下載一週天氣。</p>'
+:w?w.list.map(p=>wxBlock(p,fresh)).join('')+`<p class="muted small">上次下載：${ago(w.at)}</p>`
+:'<p class="muted">還沒下載。按右上「下載一週」，存好之後沒網路也看得到。</p>'}
+<div class="btns end"><button class="btn white" data-act="citypick" data-p="wx">${ic('plus',16)}選城市</button><button class="btn white" data-act="closesheet">關閉</button></div>`;
   $('#sheetbg').classList.add('on');
 }
 async function refreshWeather(){
   const places=ordered(trip.places).filter(hasPos);
-  if(!places.length)return toast('先新增天氣地點');
-  if(!navigator.onLine)return toast('現在沒網路，先看上次的資料');
+  if(!places.length)return toast('先選天氣城市');
+  if(netMode()==='offline')return toast('現在是離線模式，到設定切成連網模式才能下載');
+  if(!navigator.onLine)return toast('現在沒網路，先看已下載的天氣');
   const btn=$('#wxBtn');if(btn){btn.disabled=true;btn.classList.add('spin')}
+  toast('下載一週天氣中…');
   try{
     const list=[];
     for(const p of places){
-      const u=`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lng}&current=temperature_2m,apparent_temperature,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=4`;
+      const u=`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lng}&current=temperature_2m,apparent_temperature,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7`;
       const r=await fetch(u);if(!r.ok)throw new Error('wx');const j=await r.json();
-      list.push({name:p.name,cur:{t:j.current.temperature_2m,feel:j.current.apparent_temperature,code:j.current.weather_code},days:j.daily.time.map((d,i)=>({label:fmtShort(d),code:j.daily.weather_code[i],max:j.daily.temperature_2m_max[i],min:j.daily.temperature_2m_min[i],rain:j.daily.precipitation_probability_max?j.daily.precipitation_probability_max[i]:null}))});
+      list.push({name:p.name,cur:{t:j.current.temperature_2m,feel:j.current.apparent_temperature,code:j.current.weather_code},days:j.daily.time.map((d,i)=>({date:d,label:fmtShort(d),code:j.daily.weather_code[i],max:j.daily.temperature_2m_max[i],min:j.daily.temperature_2m_min[i],rain:j.daily.precipitation_probability_max?j.daily.precipitation_probability_max[i]:null}))});
     }
     LS.set('tp.wx.'+trip.id,{at:Date.now(),list});
-    if(curTab==='home')renderHome();if($('#wxSheet')&&$('#sheetbg').classList.contains('on'))showWeather();
-    toast('天氣更新好了，窗簾拉開囉');
-  }catch(e){toast('更新失敗，等等再試');if(btn){btn.disabled=false;btn.classList.remove('spin')}}
+    if(curTab==='home')renderHome();if(curTab==='set')renderSettings();
+    if($('#wxSheet')&&$('#sheetbg').classList.contains('on'))showWeather();
+    toast('一週天氣存好了，沒網路也看得到');
+  }catch(e){toast('下載失敗，等等再試');if(btn){btn.disabled=false;btn.classList.remove('spin')}}
 }
 
 /* ========== 行程 ========== */
@@ -910,6 +978,7 @@ function closeViewer(){const v=$('#viewer');v.classList.remove('on');v.innerHTML
 /* ========== 離線地圖 ========== */
 const TILE=256,TILE_CACHE='trip-tiles';
 const TURL=(z,x,y)=>`https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+const OSMURL=(z,x,y)=>`https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 const lng2px=(lng,z)=>(lng+180)/360*TILE*2**z;
 const lat2px=(lat,z)=>{const r=lat*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*TILE*2**z};
 const px2lng=(x,z)=>x/(TILE*2**z)*360-180;
@@ -920,7 +989,7 @@ function bearing(a,b){const t=Math.PI/180,y=Math.sin((b.lng-a.lng)*t)*Math.cos(b
 const DIRS=['北','東北','東','東南','南','西南','西','西北'];
 const fmtDist=m=>m<1000?`${Math.round(m)} 公尺`:`${(m/1000).toFixed(1)} 公里`;
 
-/* 地圖圖塊：先讀手機裡存好的 → 沒有就上網抓並存起來 → 都沒有就用上一層放大頂著 */
+/* 地圖圖塊：先讀手機裡存好的 → 連網模式才上網抓 → 都沒有就用上一層放大頂著 */
 let tileStoreP=null;
 function tcache(){if(!('caches' in window))return Promise.resolve(null);if(!tileStoreP)tileStoreP=caches.open(TILE_CACHE).catch(()=>null);return tileStoreP}
 const srcMem=new Map();
@@ -936,7 +1005,7 @@ async function tileLocal(u){
   }catch(e){return null}
 }
 async function tileNet(u){
-  if(!navigator.onLine)return null;
+  if(!useNet())return null;
   try{const r=await fetch(u,{mode:'cors',credentials:'omit'});if(!r.ok)return null;
     const b=await r.clone().blob();
     tcache().then(c=>c&&c.put(u,r)).catch(()=>{});
@@ -972,10 +1041,12 @@ async function loadTile(t){
   const net=await netP;
   if(t.dead)return;
   if(net)setTileImg(t,net,0,0,0);
+  else if(useNet())setTileImg(t,OSMURL(t.z,t.x,t.y),0,0,0);
   else if(!hasParent){t.state='miss';t.el.classList.add('miss')}
   mapCheckHint();
 }
 function makeTile(z,x,y){const el=document.createElement('div');el.className='tl';const t={el,z,x,y,dead:false,state:null};loadTile(t);return t}
+function resetTiles(){for(const t of map.tiles.values()){t.dead=true;t.el.remove()}map.tiles.clear()}
 let hintT=null;
 function mapCheckHint(){
   clearTimeout(hintT);
@@ -983,13 +1054,96 @@ function mapCheckHint(){
     const h=$('#mapHint');if(!h)return;
     if(curTab!=='map'||map.picking){h.hidden=true;return}
     const ts=[...map.tiles.values()];
-    if(!ts.length||ts.some(t=>!t.state)){return}
-    const any=ts.some(t=>t.state==='full'||t.state==='parent');
-    if(any){h.hidden=true;return}
-    const hasSpots=spotsArr().some(hasPos);
-    h.innerHTML=`<span>${navigator.onLine?'地圖載不出來，網路可能不穩':'這附近還沒有存離線地圖'}</span>${hasSpots?`<button class="btn small" data-act="mapspots">${ic('pin',15)}回到景點</button>`:''}`;
+    if(!ts.length||ts.some(t=>!t.state))return;
+    if(ts.some(t=>t.state==='full'||t.state==='parent')){h.hidden=true;return}
+    const off=netMode()==='offline'||!navigator.onLine,hasSpots=spotsArr().some(hasPos);
+    h.innerHTML=`<span>${off?'這附近還沒下載離線地圖':'地圖載不出來，網路可能不穩'}</span>${hasSpots?`<button class="btn small white" data-act="mapspots">${ic('pin',15)}回到景點</button>`:''}<button class="btn small" data-act="mapsheet">${ic('download',15)}離線地圖</button>`;
     h.hidden=false;
   },900);
+}
+
+/* 選城市下載 */
+function boxAround(lat,lng,r){const k=Math.max(.3,Math.cos(lat*Math.PI/180));return{n:lat+r,s:lat-r,w:lng-r/k,e:lng+r/k}}
+function cityTiles(cc,c,size,set){
+  const S=SIZES[size]||SIZES.s,lat=c[2],lng=c[3];
+  tilesFor(COUNTRY_BOX[cc],[5,6,7],set);
+  tilesFor(boxAround(lat,lng,.35),[8,9,10,11],set);
+  tilesFor(boxAround(lat,lng,S.r1),[12,13,14,15],set);
+  tilesFor(boxAround(lat,lng,S.r2),[16],set);
+  return set;
+}
+let cp=null;
+function openCityPicker(purpose){
+  const lastCc=LS.get('tp.cpcc','tw');
+  cp={purpose,cc:CITIES[lastCc]?lastCc:'tw',size:'s',sel:new Set()};
+  renderCityPicker();$('#sheetbg').classList.add('on');$('#sheet').scrollTop=0;
+}
+function cityDone(k){
+  if(cp.purpose==='map')return !!LS.get('tp.maps',{})[k];
+  return ordered(trip.places).some(p=>p.ck===k);
+}
+function cpTiles(){const set=new Set();for(const k of cp.sel){const f=findCity(k);if(f)cityTiles(f.cc,f.c,cp.size,set)}return set}
+function renderCityPicker(){
+  const {purpose,cc,size,sel}=cp,C=CITIES[cc],isMap=purpose==='map';
+  const n=isMap&&sel.size?cpTiles().size:0;
+  const grid=$('#sheet .citygrid'),st=grid?grid.scrollTop:0;
+  $('#sheet').innerHTML=`<div class="sheet-grip"></div><h3>${isMap?'選城市下載離線地圖':'選天氣城市'}</h3>
+<div class="chips">${Object.entries(CITIES).map(([k,v])=>`<button class="chip${k===cc?' on':''}" data-cp="cc" data-v="${k}">${v.name}</button>`).join('')}</div>
+${isMap?`<div class="seg">${Object.entries(SIZES).map(([k,v])=>`<button data-cp="size" data-v="${k}" class="${k===size?'on':''}">${v.label}<small>${v.desc}／每個城市</small></button>`).join('')}</div>`:''}
+<div class="citygrid">${C.list.map(c=>{const k=cc+':'+c[0],done=cityDone(k);return `<button class="cityb${sel.has(k)?' on':''}${done?' done':''}" data-cp="city" data-v="${esc(k)}">${esc(c[0])}<small>${done?(isMap?'已下載':'已加入'):esc(c[1]||'')}</small></button>`}).join('')}</div>
+<p class="small">已選 <b>${sel.size}</b> 個${isMap&&sel.size?`・約 ${n} 張、${Math.max(1,Math.round(n*18/1024))} MB`:''}${isMap?'<br><span class="muted">已下載的城市再選一次可以補存</span>':''}</p>
+<div class="btns end"><button class="btn white" data-act="closesheet">取消</button><button class="btn red" data-cp="go"${sel.size?'':' disabled'}>${isMap?ic('download',16)+'開始下載':ic('plus',16)+'加入並下載天氣'}</button></div>`;
+  const g2=$('#sheet .citygrid');if(g2)g2.scrollTop=st;
+}
+$('#sheet').addEventListener('click',e=>{
+  const b=e.target.closest('[data-cp]');if(!b||!cp)return;
+  const a=b.dataset.cp,v=b.dataset.v;
+  if(a==='cc'){cp.cc=v;LS.set('tp.cpcc',v);renderCityPicker()}
+  else if(a==='size'){cp.size=v;renderCityPicker()}
+  else if(a==='city'){cp.sel.has(v)?cp.sel.delete(v):cp.sel.add(v);renderCityPicker()}
+  else if(a==='go')cityGo();
+});
+function cityGo(){
+  const {purpose,sel,size}=cp,keys=[...sel];if(!keys.length)return;
+  if(purpose==='map'){const urls=[...cpTiles()];closeSheet();cp=null;downloadTiles(urls,{cities:keys,size});return}
+  const ch={};let o=Date.now();
+  for(const k of keys){const f=findCity(k);if(!f||ordered(trip.places).some(p=>p.ck===k))continue;const id=uid();ch['places.'+id]={id,ck:k,name:f.c[1]?`${f.c[0]}・${f.c[1]}`:f.c[0],lat:f.c[2],lng:f.c[3],o:o++}}
+  if(Object.keys(ch).length)commit(ch);
+  closeSheet();cp=null;rerender();
+  if(netMode()==='online'&&navigator.onLine)refreshWeather();else toast('城市加好了，有網路、切成連網模式後按「下載一週天氣」');
+}
+function openMapSheet(){
+  const maps=LS.get('tp.maps',{}),ks=Object.keys(maps).filter(k=>findCity(k));
+  $('#sheet').innerHTML=`<div class="sheet-grip"></div><h3>離線地圖</h3>
+${ks.length?`<p class="muted small">點城市直接跳過去</p><div class="citygrid">${ks.map(k=>{const f=findCity(k);return `<button class="cityb done" data-act="mapjump" data-k="${esc(k)}">${esc(f.c[0])}<small>${CITIES[f.cc].name}・${(SIZES[maps[k].size]||SIZES.s).label}</small></button>`}).join('')}</div>`:'<p class="muted">還沒有下載任何城市。</p>'}
+<p class="small">目前：${netMode()==='offline'?'<b>離線模式</b>（只用已下載的）':'<b>連網模式</b>'}</p>
+<div class="btns end"><button class="btn white" data-act="closesheet">關閉</button><button class="btn red" data-act="citypick" data-p="map">${ic('download',16)}下載城市</button></div>`;
+  $('#sheetbg').classList.add('on');
+}
+async function removeCityMap(k){
+  const maps=LS.get('tp.maps',{}),m=maps[k];if(!m)return;
+  if(!confirm(`要刪除「${m.name}」的離線地圖嗎？`))return;
+  delete maps[k];LS.set('tp.maps',maps);
+  const keep=new Set();for(const[kk,mm]of Object.entries(maps)){const f=findCity(kk);if(f)cityTiles(f.cc,f.c,mm.size,keep)}
+  const f=findCity(k),del=f?cityTiles(f.cc,f.c,m.size,new Set()):new Set();
+  const c=await tcache();if(c){for(const u of del)if(!keep.has(u)){try{await c.delete(u)}catch(e){}}}
+  srcMem.clear();renderSettings();toast('刪掉了');
+}
+async function testMap(){
+  const box=$('#mapTest');if(!box)return;box.textContent='測試中…';
+  const out=[];
+  out.push('開啟方式：'+(isStandalone()?'主畫面 App':'瀏覽器'));
+  out.push('背景程式：'+(navigator.serviceWorker&&navigator.serviceWorker.controller?'已啟用':'未啟用'));
+  out.push('網路模式：'+(netMode()==='offline'?'離線模式':'連網模式')+'・'+(navigator.onLine?'手機有網路':'手機沒網路'));
+  const c=await tcache();out.push('離線儲存：'+(c?'可以使用':'不能使用'));
+  let keys=[];if(c){try{keys=await c.keys();out.push('已存地圖：'+keys.length+' 張')}catch(e){out.push('已存地圖：讀不到')}}
+  if(c&&keys.length){try{const r=await c.match(keys[0]);const b=await r.blob();out.push('讀取已存地圖：'+(b.size?'正常':'讀不到內容（'+r.type+'）'))}catch(e){out.push('讀取已存地圖：失敗')}}
+  if(navigator.onLine){
+    const z=10,x=Math.floor(lng2px(121.56,z)/TILE),y=Math.floor(lat2px(25.03,z)/TILE);
+    try{const r=await fetch(TURL(z,x,y)+'?test='+Date.now(),{mode:'cors',credentials:'omit',cache:'no-store'});out.push('地圖伺服器：'+(r.ok?'正常':'回應 '+r.status))}
+    catch(e){out.push('地圖伺服器：連不上（'+(e&&e.message||e)+'）')}
+  }else out.push('地圖伺服器：現在沒網路，無法測試');
+  box.innerHTML=out.join('<br>');
 }
 
 function mapLoadView(){
@@ -999,7 +1153,7 @@ function mapLoadView(){
 }
 function mapInit(){
   map.inited=true;
-  $('.mapbtns').innerHTML=`<button class="rb" data-act="zin" aria-label="放大">${ic('plus',22)}</button><button class="rb" data-act="zout" aria-label="縮小">${ic('minus',22)}</button><button class="rb" data-act="locate" aria-label="我的位置">${ic('locate',22)}</button><button class="rb" data-act="dlview" aria-label="存下這個範圍">${ic('download',22)}</button>`;
+  $('.mapbtns').innerHTML=`<button class="rb" data-act="zin" aria-label="放大">${ic('plus',22)}</button><button class="rb" data-act="zout" aria-label="縮小">${ic('minus',22)}</button><button class="rb" data-act="locate" aria-label="我的位置">${ic('locate',22)}</button><button class="rb" data-act="mapsheet" aria-label="離線地圖">${ic('download',22)}</button>`;
   $('#pickbar').innerHTML=`移動地圖，讓紅色十字對準地點<div class="btns center"><button class="btn white" data-act="pickno">取消</button><button class="btn red" data-act="pickok">就是這裡</button></div>`;
   const el=$('#map'),ptr=new Map();let drag=null,pinch=null;
   const rel=e=>{const r=el.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};
@@ -1095,51 +1249,46 @@ function endPick(ok){
   if(ok&&cb)cb(map.lat,map.lng);go(prevTab==='map'?'spots':prevTab);$('#sheetbg').classList.remove('away');
 }
 function tilesFor(b,zs,set){for(const z of zs){const N=2**z,x0=Math.floor(lng2px(b.w,z)/TILE),x1=Math.floor(lng2px(b.e,z)/TILE),y0=Math.max(0,Math.floor(lat2px(b.n,z)/TILE)),y1=Math.min(N-1,Math.floor(lat2px(b.s,z)/TILE));for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)set.add(TURL(z,((x%N)+N)%N,y))}return set}
-function dlView(){
-  const el=$('#map'),W=el.clientWidth,H=el.clientHeight,z=map.z,cx=lng2px(map.lng,z),cy=lat2px(map.lat,z);
-  const b={n:px2lat(cy-H/2,z),s:px2lat(cy+H/2,z),w:px2lng(cx-W/2,z),e:px2lng(cx+W/2,z)},zs=[];
-  for(let k=Math.max(3,z-3);k<=Math.min(17,z+2);k++)zs.push(k);
-  downloadTiles([...tilesFor(b,zs,new Set())]);
-}
 function dlSpots(){
   const pts=spotsArr().filter(hasPos);if(!pts.length)return toast('還沒有有座標的地點');
-  const set=new Set(),la=pts.map(p=>p.lat),ln=pts.map(p=>p.lng);
-  const all={n:Math.max(...la)+.03,s:Math.min(...la)-.03,w:Math.min(...ln)-.04,e:Math.max(...ln)+.04};
-  for(let z=8;z<=13;z++){const one=tilesFor(all,[z],new Set());if(one.size>200)break;one.forEach(u=>set.add(u))}
-  for(const p of pts){tilesFor({n:p.lat+.012,s:p.lat-.012,w:p.lng-.015,e:p.lng+.015},[14,15],set);tilesFor({n:p.lat+.006,s:p.lat-.006,w:p.lng-.008,e:p.lng+.008},[16],set)}
+  const set=new Set();
+  for(const p of pts){tilesFor(boxAround(p.lat,p.lng,.012),[14,15],set);tilesFor(boxAround(p.lat,p.lng,.006),[16],set)}
   downloadTiles([...set]);
 }
-const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
-async function downloadTiles(urls){
+async function downloadTiles(urls,meta){
   const c=await tcache();if(!c)return alert('這個瀏覽器沒辦法存離線地圖，換 Safari 或 Chrome 試試。');
-  if(!navigator.onLine)return toast('現在沒有網路');
-  try{const have=new Set((await c.keys()).map(r=>r.url));urls=urls.filter(u=>!have.has(u))}catch(e){}
-  if(!urls.length)return toast('這個範圍已經存好了');
-  if(urls.length>2500)return toast('範圍太大了，放大一點再下載');
-  let msg=`要存 ${urls.length} 張地圖（大約 ${Math.max(1,Math.round(urls.length*20/1024))} MB）？\n建議連 Wi-Fi 的時候做。`;
-  if(isIOS()&&!navigator.standalone)msg+='\n\n提醒：你現在是用 Safari 開的。iPhone 的 Safari 和「主畫面 App」資料是分開的，要在主畫面的 App 裡存，出國時才看得到。';
+  const record=()=>{if(!meta||!meta.cities)return;const maps=LS.get('tp.maps',{});for(const k of meta.cities){const f=findCity(k);if(f)maps[k]={name:`${CITIES[f.cc].name}・${f.c[0]}`,size:meta.size,at:Date.now()}}LS.set('tp.maps',maps)};
+  let todo=urls;
+  try{const have=new Set((await c.keys()).map(r=>r.url));todo=urls.filter(u=>!have.has(u))}catch(e){}
+  if(!todo.length){record();toast('都已經存好了');if(curTab==='set')renderSettings();return}
+  if(!navigator.onLine)return toast('現在沒有網路，連上 Wi-Fi 再下載');
+  if(todo.length>8000)return toast('一次選太多了，分幾次下載');
+  let msg=`要下載 ${todo.length} 張地圖（大約 ${Math.max(1,Math.round(todo.length*18/1024))} MB）？\n建議連 Wi-Fi 的時候做。`;
+  if(isIOS()&&!isStandalone())msg+='\n\n提醒：你現在是用 Safari 開的。iPhone 的 Safari 和「主畫面 App」資料是分開的，要從主畫面的圖示打開再下載，出國時才看得到。';
   if(!confirm(msg))return;
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   const pg=$('#prog');pg.hidden=false;
   let i=0,ok=0,fail=0,full=false;
-  const paint=()=>{const d=ok+fail;pg.innerHTML=`存地圖中… ${d} / ${urls.length}<div class="bar"><i style="width:${d/urls.length*100}%"></i></div>`};paint();
-  const worker=async()=>{while(i<urls.length&&!full){const u=urls[i++];
+  const paint=()=>{const d=ok+fail;pg.innerHTML=`下載地圖中… ${d} / ${todo.length}<div class="bar"><i style="width:${d/todo.length*100}%"></i></div>`};paint();
+  const worker=async()=>{while(i<todo.length&&!full){const u=todo[i++];
     try{const r=await fetch(u,{mode:'cors',credentials:'omit'});if(!r.ok)throw new Error('bad');await c.put(u,r);ok++}
     catch(e){if(e&&e.name==='QuotaExceededError')full=true;fail++}
-    const d=ok+fail;if(d%5===0||d===urls.length)paint()}};
+    const d=ok+fail;if(d%5===0||d===todo.length)paint()}};
   await Promise.all(Array.from({length:6},worker));
   pg.hidden=true;
+  if(ok>0)record();
   if(full)alert(`手機空間不夠，只存了 ${ok} 張。可以清掉一些照片或 App 再試。`);
-  else if(!ok)alert('地圖都沒存成功。可能是網路不穩，或地圖伺服器暫時擋下，請過幾分鐘再試一次。');
-  else toast(fail?`存好 ${ok} 張，${fail} 張失敗，再按一次可以補存`:`存好 ${ok} 張，沒網路也看得到了`);
+  else if(!ok)alert('地圖都沒存成功。可能是網路不穩，或地圖伺服器暫時擋下，請過幾分鐘再試，也可以到設定按「測試地圖」看看原因。');
+  else toast(fail?`存好 ${ok} 張，${fail} 張失敗，再選一次同一個城市可以補存`:`存好 ${ok} 張，沒網路也看得到了`);
   if(curTab==='set')renderSettings();
-  if(curTab==='map'){for(const t of map.tiles.values()){t.dead=true;t.el.remove()}map.tiles.clear();mapRender()}
+  if(curTab==='map'){resetTiles();mapRender()}
 }
 async function tileCount(){try{const c=await tcache();if(!c)return 0;return (await c.keys()).length}catch(e){return 0}}
 async function clearTiles(){
   if(!confirm('要清除所有存好的離線地圖嗎？'))return;
   try{await caches.delete(TILE_CACHE)}catch(e){}
   tileStoreP=null;for(const v of srcMem.values())if(v&&v.startsWith('blob:'))URL.revokeObjectURL(v);srcMem.clear();
+  LS.set('tp.maps',{});resetTiles();
   renderSettings();toast('清掉了');
 }
 
@@ -1170,6 +1319,8 @@ function openQR(id){
 /* ========== 設定 ========== */
 async function renderSettings(){
   const tiles=await tileCount(),sw=!!(navigator.serviceWorker&&navigator.serviceWorker.controller);
+  const maps=LS.get('tp.maps',{}),mkeys=Object.keys(maps),w=wxData(),mode=netMode(),standalone=isStandalone();
+  let usage='';try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();usage=`這個 App 在手機裡用了約 ${Math.round((e.usage||0)/1048576)} MB`}}catch(e){}
   const cloudTxt=!FIREBASE_CONFIG?'還沒設定雲端（只有這支手機看得到）':trip.cloud?`已開啟・專案碼 ${fmtCode(trip.id)}`:'還沒分享（按「邀請朋友」開啟）';
   $('#page-set').innerHTML=`<div class="pagehead"><h1>設定</h1></div>
 <section class="card tape"><h2>這趟旅行</h2>
@@ -1177,19 +1328,30 @@ async function renderSettings(){
 <div class="btns"><button class="btn white" data-act="edittrip">${ic('edit',16)}編輯日期、地點</button><button class="btn red" data-act="share">${ic('qr',16)}邀請朋友</button></div></section>
 <section class="card"><h2>加入朋友的旅行</h2><p class="small">朋友給你專案碼，或直接用相機掃他的邀請 QR。</p>
 <div class="btns"><button class="btn" data-act="joincode">輸入專案碼加入</button></div></section>
-<section class="card"><h2>出發前的離線準備</h2>
+<section class="card"><h2>網路模式</h2>
+<div class="seg"><button data-act="mode" data-v="online" class="${mode==='online'?'on':''}">連網模式<small>沒下載的地方會上網抓</small></button><button data-act="mode" data-v="offline" class="${mode==='offline'?'on':''}">離線模式<small>只用已下載的・最省網路</small></button></div>
+<p class="muted small">${mode==='offline'?'現在是離線模式：地圖和天氣都不會用到網路流量。':'現在是連網模式：沒下載到的地圖會上網抓，會用到流量。'}</p></section>
+<section class="card"><h2>離線地圖</h2>
+<p class="small">開啟方式：<b>${standalone?'主畫面 App':'瀏覽器'}</b>・已存 <b>${tiles}</b> 張地圖${usage?`<br><span class="muted">${usage}</span>`:''}</p>
+${isIOS()&&!standalone?'<div class="warnbox">你現在是用 Safari 開的。iPhone 的 Safari 和主畫面 App 資料是分開存的，請從主畫面的圖示打開再下載，出國時才看得到。</div>':''}
+${mkeys.length?mkeys.map(k=>`<div class="lrow"><span class="t">${esc(maps[k].name)} <small class="muted">${(SIZES[maps[k].size]||SIZES.s).label}・${ago(maps[k].at)}</small></span><button class="btn small white" data-act="mapdel" data-k="${esc(k)}">${ic('trash',15)}</button></div>`).join(''):'<p class="muted">還沒有下載任何城市</p>'}
+<div class="btns"><button class="btn green" data-act="citypick" data-p="map">${ic('download',18)}選城市下載</button><button class="btn white small" data-act="dlspots">補存景點周邊</button></div>
+<div class="btns"><button class="btn white small" data-act="maptest">測試地圖</button><button class="btn white small danger" data-act="cleartiles">全部清除</button></div>
+<p class="small" id="mapTest"></p></section>
+<section class="card"><h2>天氣（一週）</h2>
+${ordered(trip.places).map(p=>`<div class="lrow"><span class="t">${esc(p.name)}</span><button class="btn small white" data-act="placedel" data-id="${p.id}">${ic('trash',15)}</button></div>`).join('')||'<p class="muted">還沒有天氣城市</p>'}
+<p class="muted small">${w?'上次下載：'+ago(w.at):'還沒下載'}</p>
+<div class="btns"><button class="btn" data-act="citypick" data-p="wx">${ic('plus',16)}選城市</button><button class="btn green" data-act="wx">${ic('download',16)}下載一週天氣</button><button class="btn small white" data-act="addplace">自訂地點</button></div></section>
+<section class="card"><h2>出發前的準備</h2>
 <ol class="check">
-<li class="${sw?'ok':''}">用網址打開、加入主畫面，從主畫面開 ${sw?'✓ 離線功能已啟用':'（離線功能還沒啟用）'}</li>
-<li class="${tiles?'ok':''}">存離線地圖：目前 <b>${tiles}</b> 張</li>
+<li class="${sw&&standalone?'ok':''}">用網址打開、加入主畫面，之後都從主畫面的圖示開</li>
+<li class="${mkeys.length?'ok':''}">下載要去的城市地圖（已下載 ${mkeys.length} 個城市）</li>
+<li class="${w?'ok':''}">下載一週天氣</li>
 <li>把 QR／票券截圖放進「QR」</li>
-<li>出門前點首頁的窗戶，按一次「更新」</li>
-</ol>
-<div class="btns"><button class="btn green" data-act="dlspots">${ic('download',18)}存全部景點周邊地圖</button><button class="btn white small" data-act="cleartiles">清除地圖</button></div>
-<p class="muted small">在地圖頁按 ${ic('download',14)} 可以存目前畫面的範圍。看過的地圖也會自動留著。GPS 不用網路，離線一樣看得到自己在哪。</p></section>
+<li>出國後切成「離線模式」最省網路</li>
+</ol></section>
 <section class="card"><div class="row-between"><h2>常用連結</h2><button class="btn small" data-act="addlink">${ic('plus',15)}新增</button></div>
 ${ordered(trip.links).map(l=>`<div class="lrow"><span class="dot c-${l.color}"></span><span class="t">${esc(l.title)}${l.url?'':' <small class="muted">（還沒填連結）</small>'}</span><button class="btn small white" data-act="editlink" data-id="${l.id}">${ic('edit',15)}</button></div>`).join('')||'<p class="muted">還沒有連結</p>'}</section>
-<section class="card"><div class="row-between"><h2>天氣地點</h2><button class="btn small" data-act="addplace">${ic('plus',15)}新增</button></div>
-${ordered(trip.places).map(p=>`<div class="lrow"><span class="t">${esc(p.name)} <small class="muted">${hasPos(p)?p.lat.toFixed(3)+', '+p.lng.toFixed(3):''}</small></span><button class="btn small white" data-act="editplace" data-id="${p.id}">${ic('edit',15)}</button></div>`).join('')||'<p class="muted">還沒有地點</p>'}</section>
 <section class="card"><div class="row-between"><h2>緊急電話</h2><button class="btn small" data-act="addsos">${ic('plus',15)}新增</button></div>
 ${ordered(trip.sos).map(x=>`<div class="lrow"><span class="t">${esc(x.name)} <small class="muted">${esc(x.tel)}</small></span><button class="btn small white" data-act="editsos" data-id="${x.id}">${ic('edit',15)}</button></div>`).join('')||'<p class="muted">還沒有</p>'}
 <p class="muted small">記得加上目的地的報警、救護電話，還有住宿的電話。</p></section>
@@ -1203,7 +1365,7 @@ ${ordered(trip.sos).map(x=>`<div class="lrow"><span class="t">${esc(x.name)} <sm
 function editLink(l){const isNew=!l;openForm({title:isNew?'新增連結':'編輯連結',fields:[{k:'title',label:'名稱',req:1},{k:'url',label:'網址',type:'url',ph:'https://…'},{k:'note',label:'小字說明'},{k:'color',label:'顏色',type:'select',opts:COLORS}],values:l||{color:'butter'},
   onSave:v=>{const o={...(l||{id:uid(),o:Date.now()}),...v};commit({['links.'+o.id]:o});rerender()},
   onDelete:isNew?null:()=>{commit({['links.'+l.id]:undefined});rerender()}})}
-function editPlace(pl){openForm({title:pl?'編輯天氣地點':'新增天氣地點',fields:[{k:'name',label:'名稱',req:1,ph:'例：大阪'},{k:'coords',label:'位置',type:'coords',req:1,hint:'在 Google 地圖長按城市中心，複製座標貼上；或按「地圖選」'}],values:pl?{name:pl.name,coords:`${pl.lat}, ${pl.lng}`}:{},
+function editPlace(pl){openForm({title:pl?'編輯天氣地點':'自訂天氣地點',fields:[{k:'name',label:'名稱',req:1,ph:'例：清邁'},{k:'coords',label:'位置',type:'coords',req:1,hint:'在 Google 地圖長按城市中心，複製座標貼上；或按「地圖選」'}],values:pl?{name:pl.name,coords:`${pl.lat}, ${pl.lng}`}:{},
   onSave:v=>{const o={...(pl||{id:uid(),o:Date.now()}),name:v.name,lat:v.lat,lng:v.lng};commit({['places.'+o.id]:o});rerender()},
   onDelete:pl?()=>{commit({['places.'+pl.id]:undefined});rerender()}:null})}
 function editSos(x){openForm({title:x?'編輯緊急電話':'新增緊急電話',fields:[{k:'name',label:'名稱',req:1,ph:'例：當地報警、住宿櫃檯'},{k:'tel',label:'電話',type:'tel',req:1,ph:'例：110、+81-3-1234-5678'}],values:x||{},
@@ -1242,6 +1404,7 @@ document.addEventListener('click',e=>{
     case 'addlink':editLink(null);break;
     case 'editplace':editPlace(trip.places[id]);break;
     case 'addplace':editPlace(null);break;
+    case 'placedel':if(confirm('移除這個天氣城市？')){commit({['places.'+id]:undefined});rerender()}break;
     case 'editsos':editSos(trip.sos[id]);break;
     case 'addsos':editSos(null);break;
     case 'edittrip':editProject(trip);break;
@@ -1252,10 +1415,15 @@ document.addEventListener('click',e=>{
     case 'popen':openPola(id);break;
     case 'pswitch':closeViewer();switchProject(id);toast('換到這一趟了');break;
     case 'pedit':closeViewer();editProject(id===trip.id?trip:loadProject(id));break;
+    case 'mode':{LS.set('tp.mode',t.dataset.v);resetTiles();toast(t.dataset.v==='offline'?'切成離線模式：只用已下載的地圖和天氣':'切成連網模式');rerender();break}
+    case 'citypick':openCityPicker(t.dataset.p);break;
+    case 'mapdel':removeCityMap(t.dataset.k);break;
+    case 'maptest':testMap();break;
+    case 'mapsheet':openMapSheet();break;
+    case 'mapjump':{const f=findCity(t.dataset.k);closeSheet();if(f){const jump=()=>{map.lat=f.c[2];map.lng=f.c[3];map.z=13;map.follow=false;mapRender()};if(curTab==='map')jump();else go('map',jump)}break}
     case 'zin':zoomAt($('#map').clientWidth/2,$('#map').clientHeight/2,1);break;
     case 'zout':zoomAt($('#map').clientWidth/2,$('#map').clientHeight/2,-1);break;
     case 'locate':startGPS(true);break;
-    case 'dlview':dlView();break;
     case 'dlspots':dlSpots();break;
     case 'cleartiles':clearTiles();break;
     case 'mapspots':{const pts=spotsArr().filter(hasPos);if(pts.length){$('#mapHint').hidden=true;fitTo(pts)}break}
