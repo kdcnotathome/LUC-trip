@@ -251,6 +251,13 @@ span.pola-photo{display:grid;place-items:center;color:var(--ink2)}
 .lrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1.5px dashed var(--paper2)}.lrow:last-child{border:0}
 .dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--ink);flex:none}
 .lrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .no{flex:none;width:22px;height:22px;border-radius:50%;background:var(--paper2);display:grid;place-items:center;font-size:12px}
+.lrow .no.first{background:var(--butter);border:1.5px solid var(--ink)}
+.ibs{display:flex;gap:6px;flex:none}
+.ib{width:34px;height:34px;border-radius:50%;border:2px solid var(--ink);background:var(--cream);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
+.ib:active{transform:translateY(2px)}
+.ib:disabled{opacity:.25;cursor:default}
+.ib.danger{color:var(--red)}
 .check{padding-left:22px;margin:6px 0}.check li{margin:6px 0}.check li.ok{color:#5E8A3D}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:4px 0;font-size:15px}.kv dt{color:var(--ink2)}.kv dd{margin:0}
 .seg{display:flex;border:2px solid var(--ink);border-radius:14px;overflow:hidden;margin:8px 0}
@@ -425,7 +432,8 @@ locate:'<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5"/><path d=
 download:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
 edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
 trash:'<path d="M5 7h14M9 7V4.5h6V7M7 7l1 13h8l1-13"/>',
-arrow:'<path d="M9 5l7 7-7 7"/>',up:'<path d="M12 20V4M6 10l6-6 6 6"/>',
+arrow:'<path d="M9 5l7 7-7 7"/>',up:'<path d="M12 20V4M6 10l6-6 6 6"/>',down:'<path d="M12 4v16M6 14l6 6 6-6"/>',
+check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
 bed:'<path d="M3 18V7M3 14h18v4M21 14v-2a3 3 0 0 0-3-3h-7v5"/><circle cx="7" cy="11" r="1.6"/>',
 people:'<circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a2.6 2.6 0 0 1 0 5M17.5 14a4.5 4.5 0 0 1 3 4.5"/>',
 clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
@@ -561,6 +569,7 @@ function softRender(){
   else if(curTab==='spots')renderSpots();
   else if(curTab==='set')renderSettings();
   else if(curTab==='map'){renderMapFrame();mapInfo()}
+  if($('#wxSheet')&&$('#sheetbg').classList.contains('on'))showWeather();
 }
 async function shareProject(){
   if(!FIREBASE_CONFIG)return shareNoCloud();
@@ -666,14 +675,13 @@ function noteTile(l){
   if(!l.url)return `<button class="stk empty" data-act="editlink" data-id="${l.id}"><b>${esc(l.title)}</b><small>點我填連結</small></button>`;
   return `<a class="stk n-${l.color}" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener"><b>${esc(l.title)}</b>${l.note?`<small>${esc(l.note)}</small>`:''}</a>`;
 }
-function wxData(){const w=LS.get('tp.wx.'+trip.id,null);return w&&w.list&&w.list.length?w:null}
 function renderHome(){
   const st=tripStatus(),d=st.t==='during'?st.n:1,list=spotsOfDay(d);
   const cal=st.t==='nodate'?['出發日','?','點我設定']:st.t==='before'?['出發倒數',st.n,'天']:st.t==='during'?['旅行第',st.n,'天']:['旅程結束','✓','辛苦啦'];
-  const places=ordered(trip.places),w=wxData(),night=isNight(),online=navigator.onLine,introOn=LS.get('tp.intro','on')!=='off';
+  const places=ordered(trip.places),w=wxData(),wl=wxList(),night=isNight(),online=navigator.onLine,introOn=LS.get('tp.intro','on')!=='off';
   let winIn='<b>?</b>',winTag=places.length?'拉開窗簾看天氣':'先新增天氣地點',sky=night?'#34406A':'#C9DCEB',opened=false;
-  if(w){
-    const p=w.list[0],fresh=new Date(w.at).toDateString()===new Date().toDateString(),td=(p.days||[]).find(x=>x.date===todayStr());
+  if(w&&wl.length&&wl[0]._pid===places[0].id){
+    const p=wl[0],fresh=new Date(w.at).toDateString()===new Date().toDateString(),td=(p.days||[]).find(x=>x.date===todayStr());
     if(fresh&&p.cur){const[icn,txt]=wx(p.cur.code);if(!night)sky=SKY[icn];winIn=`${ic(icn,34)}<b>${Math.round(p.cur.t)}°</b>`;winTag=`${esc(p.name)}・${txt}`;opened=true}
     else if(td){const[icn,txt]=wx(td.code);if(!night)sky=SKY[icn];winIn=`${ic(icn,34)}<b>${Math.round(td.max)}°</b>`;winTag=`${esc(p.name)}・今天${txt}`;opened=true}
     else winTag='天氣資料過期了';
@@ -813,8 +821,16 @@ function playIntro(){
   el.addEventListener('click',()=>{if(el.classList.contains('open')||done)return;T.forEach(clearTimeout);T.length=0;el.classList.add('open');T.push(setTimeout(walkIn,800));T.push(setTimeout(finish,2000))});
 }
 
-/* ========== 天氣：選城市、下載一週，離線也看得到 ========== */
+/* ========== 天氣：選城市、下載一週，可刪除、上下移動 ========== */
 function wx(c){c=Number(c);if(c===0)return['sun','晴天'];if(c<=2)return['partly','晴時多雲'];if(c===3)return['cloud','陰天'];if(c<=48)return['cloud','有霧'];if(c<=57)return['rain','毛毛雨'];if(c<=67)return['rain','下雨'];if(c<=77)return['snow','下雪'];if(c<=82)return['rain','陣雨'];if(c<=86)return['snow','陣雪'];return['storm','雷雨']}
+function wxData(){const w=LS.get('tp.wx.'+trip.id,null);return w&&w.list&&w.list.length?w:null}
+/* 依照目前城市的順序整理已下載的天氣（刪掉的城市不顯示，順序改了也不用重新下載） */
+function wxList(){
+  const w=wxData();if(!w)return [];
+  const out=[];
+  for(const p of ordered(trip.places)){const e=w.list.find(x=>x.pid?x.pid===p.id:x.name===p.name);if(e)out.push({...e,name:p.name,_pid:p.id})}
+  return out;
+}
 function wxBlock(p,fresh){
   const today=todayStr(),days=(p.days||[]).filter(d=>!d.date||d.date>=today),td=days.find(d=>d.date===today);
   let now;
@@ -823,15 +839,48 @@ function wxBlock(p,fresh){
   else now=`<div class="wx-now"><div><span>${esc(p.name)}</span><small>資料過期了，有網路時再下載一次</small></div></div>`;
   return `<div class="wx">${now}<div class="wx-days">${days.map(d=>`<div class="${d.date===today?'today':''}"><small>${d.date===today?'今天':d.label}</small>${ic(wx(d.code)[0],24)}<span>${Math.round(d.max)}°<small> / ${Math.round(d.min)}°</small></span><small>降雨 ${d.rain??'-'}%</small></div>`).join('')}</div></div>`;
 }
-function showWeather(){
-  const w=wxData(),places=ordered(trip.places),off=netMode()==='offline';
+/* 城市清單（上移、下移、編輯、刪除） */
+function placeRows(){
+  const arr=ordered(trip.places);
+  if(!arr.length)return '<p class="muted">還沒有天氣城市</p>';
+  return arr.map((p,i)=>`<div class="lrow"><span class="no${i?'':' first'}">${i+1}</span><span class="t">${esc(p.name)}</span><span class="ibs">
+<button class="ib" data-act="pup" data-id="${p.id}"${i?'':' disabled'} aria-label="上移">${ic('up',16)}</button>
+<button class="ib" data-act="pdown" data-id="${p.id}"${i<arr.length-1?'':' disabled'} aria-label="下移">${ic('down',16)}</button>
+<button class="ib" data-act="editplace" data-id="${p.id}" aria-label="編輯">${ic('edit',15)}</button>
+<button class="ib danger" data-act="placedel" data-id="${p.id}" aria-label="刪除">${ic('trash',15)}</button></span></div>`).join('');
+}
+function movePlace(id,dir){
+  const arr=ordered(trip.places),i=arr.findIndex(p=>p.id===id),j=i+dir;
+  if(i<0||j<0||j>=arr.length)return;
+  [arr[i],arr[j]]=[arr[j],arr[i]];
+  const ch={};arr.forEach((p,k)=>{if(p.o!==k)ch['places.'+p.id]={...p,o:k}});
+  commit(ch);refreshWxViews();
+}
+function deletePlace(id){
+  const p=trip.places[id];if(!p)return;
+  if(!confirm(`要刪掉「${p.name}」的天氣嗎？`))return;
+  commit({['places.'+id]:undefined});refreshWxViews();toast('刪掉了');
+}
+function refreshWxViews(){if($('#wxSheet')&&$('#sheetbg').classList.contains('on'))showWeather();rerender()}
+let wxEdit=false;
+function showWeather(edit){
+  if(edit!==undefined)wxEdit=edit;
+  const w=wxData(),wl=wxList(),places=ordered(trip.places),off=netMode()==='offline';
+  if(!places.length)wxEdit=false;
   const fresh=w&&new Date(w.at).toDateString()===new Date().toDateString();
-  $('#sheet').innerHTML=`<div class="sheet-grip"></div><div class="row-between" id="wxSheet"><h3>窗外的天氣</h3>${places.length&&!off?`<button class="btn small" data-act="wx" id="wxBtn">${ic('download',16)}下載一週</button>`:''}</div>
-${off?'<p class="muted small">現在是離線模式，顯示已下載的天氣。要更新請到「設定」切成連網模式。</p>':''}
-${!places.length?'<p class="muted">還沒有天氣城市。按下面「選城市」，選好會自動下載一週天氣。</p>'
-:w?w.list.map(p=>wxBlock(p,fresh)).join('')+`<p class="muted small">上次下載：${ago(w.at)}</p>`
-:'<p class="muted">還沒下載。按右上「下載一週」，存好之後沒網路也看得到。</p>'}
-<div class="btns end"><button class="btn white" data-act="citypick">${ic('plus',16)}選城市</button><button class="btn white" data-act="closesheet">關閉</button></div>`;
+  let head,body,foot;
+  if(wxEdit){
+    head=`<h3>編輯天氣城市</h3><button class="btn small red" data-act="wxdone">${ic('check',16)}完成</button>`;
+    body=`<p class="muted small">用 ↑ ↓ 調整順序，排第一個的會顯示在首頁的窗戶。</p>${placeRows()}`;
+    foot=`<button class="btn white" data-act="citypick">${ic('plus',16)}選城市</button><button class="btn white" data-act="addplace">自訂地點</button>`;
+  }else{
+    head=`<h3>窗外的天氣</h3><span class="btns" style="margin:0">${places.length&&!off?`<button class="btn small" data-act="wx" id="wxBtn">${ic('download',16)}下載一週</button>`:''}${places.length?`<button class="btn small white" data-act="wxedit">${ic('edit',15)}編輯</button>`:''}</span>`;
+    body=(off?'<p class="muted small">現在是離線模式，顯示已下載的天氣。要更新請到「設定」切成連網模式。</p>':'')+
+      (!places.length?'<p class="muted">還沒有天氣城市。按下面「選城市」，選好會自動下載一週天氣。</p>'
+      :places.map(p=>{const e=wl.find(x=>x._pid===p.id);return e?wxBlock(e,fresh):`<div class="wx"><div class="wx-now"><div><span>${esc(p.name)}</span><small>還沒下載，按右上「下載一週」</small></div></div></div>`}).join('')+(w?`<p class="muted small">上次下載：${ago(w.at)}</p>`:''));
+    foot=`<button class="btn white" data-act="citypick">${ic('plus',16)}選城市</button>`;
+  }
+  $('#sheet').innerHTML=`<div class="sheet-grip"></div><div class="row-between" id="wxSheet">${head}</div>${body}<div class="btns end">${foot}<button class="btn white" data-act="closesheet">關閉</button></div>`;
   $('#sheetbg').classList.add('on');
 }
 async function refreshWeather(){
@@ -846,7 +895,7 @@ async function refreshWeather(){
     for(const p of places){
       const u=`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lng}&current=temperature_2m,apparent_temperature,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7`;
       const r=await fetch(u);if(!r.ok)throw new Error('wx');const j=await r.json();
-      list.push({name:p.name,cur:{t:j.current.temperature_2m,feel:j.current.apparent_temperature,code:j.current.weather_code},days:j.daily.time.map((d,i)=>({date:d,label:fmtShort(d),code:j.daily.weather_code[i],max:j.daily.temperature_2m_max[i],min:j.daily.temperature_2m_min[i],rain:j.daily.precipitation_probability_max?j.daily.precipitation_probability_max[i]:null}))});
+      list.push({pid:p.id,name:p.name,cur:{t:j.current.temperature_2m,feel:j.current.apparent_temperature,code:j.current.weather_code},days:j.daily.time.map((d,i)=>({date:d,label:fmtShort(d),code:j.daily.weather_code[i],max:j.daily.temperature_2m_max[i],min:j.daily.temperature_2m_min[i],rain:j.daily.precipitation_probability_max?j.daily.precipitation_probability_max[i]:null}))});
     }
     LS.set('tp.wx.'+trip.id,{at:Date.now(),list});
     if(curTab==='home')renderHome();if(curTab==='set')renderSettings();
@@ -1067,7 +1116,8 @@ function renderSettings(){
 <div class="seg"><button data-act="mode" data-v="online" class="${mode==='online'?'on':''}">連網模式<small>正常使用 Google 地圖</small></button><button data-act="mode" data-v="offline" class="${mode==='offline'?'on':''}">離線模式<small>不載入地圖・最省網路</small></button></div>
 <p class="muted small">${mode==='offline'?'現在是離線模式：不載入 Google 地圖、不下載天氣。行程、QR、已下載的天氣都照常能看。':'現在是連網模式：地圖頁會載入 Google 地圖。'}</p></section>
 <section class="card"><h2>天氣（一週）</h2>
-${ordered(trip.places).map(p=>`<div class="lrow"><span class="t">${esc(p.name)}</span><button class="btn small white" data-act="placedel" data-id="${p.id}">${ic('trash',15)}</button></div>`).join('')||'<p class="muted">還沒有天氣城市</p>'}
+<p class="muted small">用 ↑ ↓ 調整順序，排第一個的會顯示在首頁的窗戶。</p>
+${placeRows()}
 <p class="muted small">${w?'上次下載：'+ago(w.at):'還沒下載'}</p>
 <div class="btns"><button class="btn" data-act="citypick">${ic('plus',16)}選城市</button><button class="btn green" data-act="wx">${ic('download',16)}下載一週天氣</button><button class="btn small white" data-act="addplace">自訂地點</button></div></section>
 <section class="card"><h2>出發前的準備</h2>
@@ -1124,7 +1174,12 @@ document.addEventListener('click',e=>{
     case 'hotel':goHotel();break;
     case 'cal':if(trip.from)go('spots');else editProject(trip);break;
     case 'wx':refreshWeather();break;
-    case 'wxopen':showWeather();break;
+    case 'wxopen':showWeather(false);break;
+    case 'wxedit':showWeather(true);break;
+    case 'wxdone':showWeather(false);break;
+    case 'pup':movePlace(id,-1);break;
+    case 'pdown':movePlace(id,1);break;
+    case 'placedel':deletePlace(id);break;
     case 'introtoggle':{const off=LS.get('tp.intro','on')==='off';LS.set('tp.intro',off?'on':'off');toast(off?'開場動畫打開了':'開場動畫關掉了');rerender();break}
     case 'copy':if(navigator.clipboard)navigator.clipboard.writeText(t.dataset.text).then(()=>toast('已複製'),()=>{});break;
     case 'nshare':navigator.share&&navigator.share({title:'一起來編輯我們的旅行',text:`「${trip.title}」邀請你一起編輯旅行手帳`,url:t.dataset.text}).catch(()=>{});break;
@@ -1132,7 +1187,6 @@ document.addEventListener('click',e=>{
     case 'addlink':editLink(null);break;
     case 'editplace':editPlace(trip.places[id]);break;
     case 'addplace':editPlace(null);break;
-    case 'placedel':if(confirm('移除這個天氣城市？')){commit({['places.'+id]:undefined});rerender()}break;
     case 'editsos':editSos(trip.sos[id]);break;
     case 'addsos':editSos(null);break;
     case 'edittrip':editProject(trip);break;
